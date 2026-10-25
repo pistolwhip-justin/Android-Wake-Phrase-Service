@@ -48,9 +48,10 @@ On the Samsung Galaxy A15 5G (SM-A156U), Android 16:
 5. Repeat from another app and with the screen locked.
 6. If direct launch fails, confirm the fallback notification opens ChatGPT normally.
 7. Confirm this app releases the microphone and listening stops after detection.
-8. End the ChatGPT conversation and manually restart listening; confirm the wake detector works again.
-9. Test with Display over other apps permission denied and confirm the app does not crash; notification fallback should remain usable.
-10. Record any ChatGPT version-specific behavior. Do not treat CI success as device verification.
+8. While listening is active, tap the in-app “Stop listening” button; confirm the persistent notification disappears, status changes to inactive, and the detector no longer triggers. Repeat using the notification's Stop action.
+9. End the ChatGPT conversation and manually restart listening; confirm the wake detector works again.
+10. Test with Display over other apps permission denied and confirm the app does not crash; notification fallback should remain usable.
+11. Record any ChatGPT version-specific behavior. Do not treat CI success as device verification.
 
 ### Known limitations
 - ChatGPT's internal Voice activity is undocumented and may be renamed, unexported, or permission-protected in a future release.
