@@ -46,7 +46,7 @@ class MainActivity : Activity() {
         root.addView(title, matchWrap())
 
         val description = TextView(this).apply {
-            text = "Stage 3 experimentally invokes the Android-configured digital assistant overlay after the wake phrase. The current installed model still recognizes “Hey Jarvis”; support for the requested “yo, Ai Overlord” phrase requires a separately trained model before the next release. Android may defer assistant operation until unlock. If the assistant does not open, tap the detection notification. Listening pauses after detection; restart it after your conversation."
+            text = "Stage 3 experimental assistant handoff. The custom “yo, Ai Overlord” detector runs on-device and requests Android’s configured digital assistant overlay. Android may defer assistant operation until unlock. If the assistant does not open, tap the detection notification. Listening pauses after detection; restart it after your conversation."
             textSize = 16f
             setPadding(0, 20, 0, 20)
         }
@@ -97,14 +97,14 @@ class MainActivity : Activity() {
         root.addView(overlayButton, matchWrap())
 
         val assistantSetup = TextView(this).apply {
-            text = "The wake trigger requests Android’s configured digital assistant using ACTION_ASSIST, intended to open the same assistant overlay as the power-button gesture. Display over other apps permission is required for this experimental background launch. The current detector remains “Hey Jarvis” until a custom “yo, Ai Overlord” model is integrated."
+            text = "The wake trigger requests Android’s configured digital assistant using ACTION_ASSIST, intended to open the same assistant overlay as the power-button gesture. Display over other apps permission is required for this experimental background launch. The wake-word model is a custom candidate and requires real-device false-positive and missed-detection testing."
             textSize = 13f
             setPadding(0, 12, 0, 0)
         }
         root.addView(assistantSetup, matchWrap())
 
         val diagnostics = TextView(this).apply {
-            text = "Diagnostics show microphone preflight results and the confidence score when the detector reports a match. The current detector library does not expose below-threshold scores."
+            text = "Diagnostics show microphone preflight results and the confidence score when the detector reports a match. The detector library does not expose below-threshold scores."
             textSize = 13f
             setPadding(0, 24, 0, 0)
         }
