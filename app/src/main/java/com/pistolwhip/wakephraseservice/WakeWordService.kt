@@ -199,7 +199,7 @@ class WakeWordService : Service() {
 
         started = false
         setDiagnosticStatus(
-            "ChatGPT Voice handoff attempted. Listening is paused; restart it after the conversation.",
+            "System assistant launch requested. Listening is paused; restart it after the conversation.",
             listening = false
         )
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -215,7 +215,7 @@ class WakeWordService : Service() {
                 .edit()
                 .putString(
                     KEY_DIAGNOSTIC_STATUS,
-                    "ChatGPT Voice did not launch directly. Tap the detection notification; enable Display over other apps to test direct launch."
+                    "System assistant did not launch directly. Tap the detection notification; confirm Display over other apps permission is enabled."
                 )
                 .putBoolean(KEY_LISTENING, false)
                 .apply()
