@@ -46,7 +46,7 @@ class MainActivity : Activity() {
         root.addView(title, matchWrap())
 
         val description = TextView(this).apply {
-            text = "Stage 3 experimentally attempts to launch ChatGPT Voice after “Hey Jarvis.” The direct launch uses an undocumented ChatGPT activity and may stop working after an app update. For lock-screen voice, ChatGPT may need to be the system Digital assistant, and this app needs Display over other apps permission. If direct launch fails, tap the detection notification. Listening pauses after detection; restart it after your conversation. In ChatGPT Settings > Voice, enable Background conversations if available."
+            text = "Stage 3 experimentally invokes the Android-configured digital assistant overlay after the wake phrase. The current installed model still recognizes “Hey Jarvis”; support for the requested “yo, Ai Overlord” phrase requires a separately trained model before the next release. Android may defer assistant operation until unlock. If the assistant does not open, tap the detection notification. Listening pauses after detection; restart it after your conversation."
             textSize = 16f
             setPadding(0, 20, 0, 20)
         }
@@ -85,7 +85,7 @@ class MainActivity : Activity() {
         root.addView(stopButton, matchWrap())
 
         val overlayButton = Button(this).apply {
-            text = "Enable direct Voice launch"
+            text = "Enable assistant launch"
             setOnClickListener {
                 val intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -97,7 +97,7 @@ class MainActivity : Activity() {
         root.addView(overlayButton, matchWrap())
 
         val assistantSetup = TextView(this).apply {
-            text = "For lock-screen Voice capture, try setting ChatGPT as the phone’s Digital assistant: Settings > Apps > Default apps > Digital assistant app. If ChatGPT is not offered there, this route may not work on this device. The direct launch uses an undocumented ChatGPT component and is experimental."
+            text = "The wake trigger requests Android’s configured digital assistant using ACTION_ASSIST, intended to open the same assistant overlay as the power-button gesture. Display over other apps permission is required for this experimental background launch. The current detector remains “Hey Jarvis” until a custom “yo, Ai Overlord” model is integrated."
             textSize = 13f
             setPadding(0, 12, 0, 0)
         }
