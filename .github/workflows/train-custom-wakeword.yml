@@ -1,0 +1,74 @@
+name: Train custom wake phrase model
+
+on:
+  push:
+    branches:
+      - fix/in-app-stop-listening
+    paths:
+      - "wakeword/**"
+      - ".github/workflows/train-custom-wakeword.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  train-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng ffmpeg sox libsndfile1 portaudio19-dev
+
+      - name: Install LiveKit WakeWord training pipeline
+        run: python -m pip install --upgrade pip "livekit-wakeword[train,eval,export]"
+
+      - name: Download training assets
+        run: livekit-wakeword setup --config wakeword/yo_ai_overlord.yaml
+
+      - name: Train, export, and evaluate
+        run: |
+          livekit-wakeword run wakeword/yo_ai_overlord.yaml
+          livekit-wakeword eval wakeword/yo_ai_overlord.yaml --model output/yo_ai_overlord/yo_ai_overlord.onnx
+          find output/yo_ai_overlord -maxdepth 2 -type f -printf '%p %s bytes\n' | sort
+
+      - name: Verify ONNX model contract and run smoke inference
+        run: |
+          python - <<'PY'
+          import onnxruntime as ort
+          import numpy as np
+          path = "output/yo_ai_overlord/yo_ai_overlord.onnx"
+          session = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+          assert len(session.get_inputs()) == 1, session.get_inputs()
+          assert len(session.get_outputs()) == 1, session.get_outputs()
+          inp, out = session.get_inputs()[0], session.get_outputs()[0]
+          assert inp.name == "embeddings", (inp.name, inp.shape)
+          assert out.name == "score", (out.name, out.shape)
+          assert inp.shape[-2:] == [16, 96], inp.shape
+          assert out.shape[-1:] == [1], out.shape
+          scores = session.run(["score"], {"embeddings": np.zeros((1, 16, 96), dtype=np.float32)})[0]
+          assert scores.shape == (1, 1), scores.shape
+          assert np.isfinite(scores).all(), scores
+          print({"input": inp.shape, "output": out.shape, "zero_input_score": scores.tolist()})
+          PY
+
+      - name: Upload model and evaluation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: yo-ai-overlord-model-candidate
+          path: |
+            output/yo_ai_overlord/yo_ai_overlord.onnx
+            output/yo_ai_overlord/
+          if-no-files-found: error
+          retention-days: 14
