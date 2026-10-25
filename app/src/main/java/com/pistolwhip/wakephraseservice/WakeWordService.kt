@@ -60,14 +60,14 @@ class WakeWordService : Service() {
 
             setDiagnosticStatus("Microphone check passed; loading patched wake-word detector", listening = true)
             detector = FixedOpenWakeWord.Builder(this)
-                .setModel(FixedOpenWakeWord.BuiltInModel.HEY_JARVIS)
+                .setModelAsset("wakeword/yo_ai_overlord.onnx")
                 // Slightly more sensitive than the original 0.5 threshold.
                 .setThreshold(DETECTION_THRESHOLD)
                 .build()
 
             detector?.start { score ->
                 val now = SystemClock.elapsedRealtime()
-                Log.i(TAG, "Hey Jarvis detection callback; confidence=$score")
+                Log.i(TAG, "Yo, Ai Overlord detection callback; confidence=$score")
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                     .edit()
                     .putFloat(KEY_LAST_SCORE, score)
@@ -83,7 +83,7 @@ class WakeWordService : Service() {
             }
             started = true
             setDiagnosticStatus(
-                "Microphone check passed. Patched detector started; say “Hey Jarvis” clearly near the phone.",
+                "Microphone check passed. Custom detector started; say “yo, Ai Overlord” clearly near the phone.",
                 listening = true
             )
             Log.i(TAG, "Patched wake-word detector start requested; threshold=$DETECTION_THRESHOLD")
@@ -189,7 +189,7 @@ class WakeWordService : Service() {
         try {
             currentDetector?.stop()
         } catch (error: Exception) {
-            Log.w(TAG, "Detector stop before ChatGPT handoff failed", error)
+            Log.w(TAG, "Detector stop before assistant handoff failed", error)
         }
         try {
             currentDetector?.release()
@@ -299,7 +299,7 @@ class WakeWordService : Service() {
         )
         return notificationBuilder(CHANNEL_LISTENING)
             .setContentTitle("Wake Phrase Service is listening")
-            .setContentText("Say “Hey Jarvis” to receive the ChatGPT action.")
+            .setContentText("Say “yo, Ai Overlord” to invoke the system assistant.")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .setContentIntent(openApp)
@@ -319,7 +319,7 @@ class WakeWordService : Service() {
         )
         val notification = notificationBuilder(CHANNEL_DETECTED)
             .setContentTitle("Wake phrase detected")
-            .setContentText("If Voice did not open, tap here to open ChatGPT. Listening pauses after detection.")
+            .setContentText("If the assistant did not open, tap here to open ChatGPT. Listening pauses after detection.")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setAutoCancel(true)
             .setContentIntent(openChatGPT)
