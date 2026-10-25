@@ -54,10 +54,53 @@ jobs:
         run: livekit-wakeword setup --config wakeword/yo_ai_overlord.yaml
 
       - name: Train, export, and evaluate
+        shell: bash
         run: |
-          livekit-wakeword run wakeword/yo_ai_overlord.yaml
-          livekit-wakeword eval wakeword/yo_ai_overlord.yaml --model output/yo_ai_overlord/yo_ai_overlord.onnx
+          set -o pipefail
+          mkdir -p training-diagnostics
+          export PYTHONUNBUFFERED=1
+
+          # Stream the trainer output into the Actions log and retain a copy as an artifact.
+          stdbuf -oL -eL livekit-wakeword run wakeword/yo_ai_overlord.yaml 2>&1 | tee training-diagnostics/train.log &
+          trainer_pid=$!
+          started_at=$(date +%s)
+
+          # Emit a heartbeat every minute so a quiet trainer is distinguishable from a dead one.
+          (
+            while kill -0 "$trainer_pid" 2>/dev/null; do
+              now=$(date +%s)
+              elapsed=$((now - started_at))
+              log_bytes=0
+              if [ -f training-diagnostics/train.log ]; then
+                log_bytes=$(stat -c%s training-diagnostics/train.log 2>/dev/null || echo 0)
+              fi
+              echo "::notice title=Wakeword training heartbeat::elapsed_seconds=$elapsed log_bytes=$log_bytes"
+              ps -eo pid,ppid,etime,%cpu,%mem,rss,args --sort=-%cpu | grep -E 'livekit-wakeword|python' | grep -v grep | head -n 8 || true
+              sleep 60
+            done
+          ) &
+          monitor_pid=$!
+
+          wait "$trainer_pid"
+          train_status=$?
+          kill "$monitor_pid" 2>/dev/null || true
+          wait "$monitor_pid" 2>/dev/null || true
+          if [ "$train_status" -ne 0 ]; then
+            echo "::error::Wakeword training process exited with status $train_status"
+            exit "$train_status"
+          fi
+
+          livekit-wakeword eval wakeword/yo_ai_overlord.yaml --model output/yo_ai_overlord/yo_ai_overlord.onnx 2>&1 | tee training-diagnostics/eval.log
           find output/yo_ai_overlord -maxdepth 2 -type f -printf '%p %s bytes\n' | sort
+
+      - name: Upload training diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wakeword-training-diagnostics
+          path: training-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Verify ONNX model contract and run smoke inference
         run: |
