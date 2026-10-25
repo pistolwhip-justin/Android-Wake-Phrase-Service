@@ -73,8 +73,13 @@ class MainActivity : Activity() {
         val stopButton = Button(this).apply {
             text = "Stop listening"
             setOnClickListener {
-                stopService(Intent(this@MainActivity, WakeWordService::class.java))
-                refreshStatus()
+                // Deliver an explicit stop command so the service can release the
+                // detector, clear its status, and stop itself through one code path.
+                startService(
+                    Intent(this@MainActivity, WakeWordService::class.java)
+                        .setAction(WakeWordService.ACTION_STOP)
+                )
+                statusView.text = "Stopping listener…"
             }
         }
         root.addView(stopButton, matchWrap())
