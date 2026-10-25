@@ -29,6 +29,10 @@ class WakeWordService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            stopListeningByUser(startId)
+            return START_NOT_STICKY
+        }
         if (started) return START_STICKY
 
         val persistentNotification = buildListeningNotification()
@@ -99,6 +103,27 @@ class WakeWordService : Service() {
         // Let Android recreate the foreground service if the process is reclaimed.
         // Explicit Stop and startup failures still stop the service normally.
         return START_STICKY
+    }
+
+    private fun stopListeningByUser(startId: Int) {
+        Log.i(TAG, "Explicit stop requested from the app")
+        detector?.let { wakeWordDetector ->
+            try {
+                wakeWordDetector.stop()
+            } catch (error: Exception) {
+                Log.w(TAG, "Detector stop failed after explicit stop request", error)
+            }
+            try {
+                wakeWordDetector.release()
+            } catch (error: Exception) {
+                Log.w(TAG, "Detector release failed after explicit stop request", error)
+            }
+        }
+        detector = null
+        started = false
+        setDiagnosticStatus("Stopped by user.", listening = false)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelfResult(startId)
     }
 
     /**
@@ -318,6 +343,7 @@ class WakeWordService : Service() {
         }
 
     companion object {
+        const val ACTION_STOP = "com.pistolwhip.wakephraseservice.action.STOP"
         const val PREFS_NAME = "wake_phrase_service"
         const val KEY_LISTENING = "is_listening"
         const val KEY_DIAGNOSTIC_STATUS = "diagnostic_status"
