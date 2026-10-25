@@ -294,7 +294,7 @@ class WakeWordService : Service() {
         )
         val notification = notificationBuilder(CHANNEL_DETECTED)
             .setContentTitle("Wake phrase detected")
-            .setContentText("Tap to open ChatGPT. Start with Voice may be available in ChatGPT Settings > Voice.")
+            .setContentText("If Voice did not open, tap here to open ChatGPT. Listening pauses after detection.")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setAutoCancel(true)
             .setContentIntent(openChatGPT)
