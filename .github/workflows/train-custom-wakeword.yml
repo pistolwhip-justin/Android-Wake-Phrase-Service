@@ -31,7 +31,24 @@ jobs:
           sudo apt-get install -y espeak-ng ffmpeg sox libsndfile1 portaudio19-dev
 
       - name: Install LiveKit WakeWord training pipeline
-        run: python -m pip install --upgrade pip "livekit-wakeword[train,eval,export]"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade "livekit-wakeword[train,eval,export] @ git+https://github.com/livekit/livekit-wakeword.git@cdb82b8ebc179b216e1c5bf360dbdc1ccd5288f2"
+
+      - name: Verify LiveKit extraction API compatibility
+        run: |
+          python - <<'PY'
+          import inspect
+          from livekit.wakeword.data.features import run_extraction
+          from livekit.wakeword import cli
+          source = inspect.getsource(cli.run)
+          signature = inspect.signature(run_extraction)
+          print("run_extraction signature:", signature)
+          assert "sess_options" in signature.parameters, signature
+          assert signature.parameters["sess_options"].default is not inspect.Parameter.empty, signature
+          assert "run_extraction(config)" in source, "CLI invocation changed; review API before training"
+          print("LiveKit CLI and feature-extraction API are compatible.")
+          PY
 
       - name: Download training assets
         run: livekit-wakeword setup --config wakeword/yo_ai_overlord.yaml
