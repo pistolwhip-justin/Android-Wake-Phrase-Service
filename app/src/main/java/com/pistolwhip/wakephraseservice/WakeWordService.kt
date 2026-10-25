@@ -15,6 +15,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 
 class WakeWordService : Service() {
@@ -73,6 +74,7 @@ class WakeWordService : Service() {
                 if (now - lastActionAt >= ACTION_COOLDOWN_MS) {
                     lastActionAt = now
                     showDetectedNotification()
+                    handoffToChatGPTVoice()
                 }
             }
             started = true
@@ -151,6 +153,51 @@ class WakeWordService : Service() {
         }
     }
 
+    /**
+     * Release the wake-word microphone before handing control to ChatGPT. ChatGPT's Voice
+     * activity is undocumented, so this is best-effort. The detection notification remains as
+     * a user-tap fallback. Listening stops after a detection and must be restarted manually.
+     */
+    private fun handoffToChatGPTVoice() {
+        val currentDetector = detector
+        detector = null
+        try {
+            currentDetector?.stop()
+        } catch (error: Exception) {
+            Log.w(TAG, "Detector stop before ChatGPT handoff failed", error)
+        }
+        try {
+            currentDetector?.release()
+        } catch (error: Exception) {
+            Log.w(TAG, "Detector release before ChatGPT handoff failed", error)
+        }
+
+        started = false
+        setDiagnosticStatus(
+            "ChatGPT Voice handoff attempted. Listening is paused; restart it after the conversation.",
+            listening = false
+        )
+        stopForeground(STOP_FOREGROUND_REMOVE)
+
+        val launched = if (Settings.canDrawOverlays(this)) {
+            ChatGPTVoiceLauncher.launch(this)
+        } else {
+            Log.i(TAG, "Overlay permission missing; waiting for notification tap instead of direct launch")
+            false
+        }
+        if (!launched) {
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(
+                    KEY_DIAGNOSTIC_STATUS,
+                    "ChatGPT Voice did not launch directly. Tap the detection notification; enable Display over other apps to test direct launch."
+                )
+                .putBoolean(KEY_LISTENING, false)
+                .apply()
+        }
+        stopSelf()
+    }
+
     private fun setDiagnosticStatus(status: String, listening: Boolean) {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             .edit()
@@ -177,7 +224,8 @@ class WakeWordService : Service() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val priorStatus = prefs.getString(KEY_DIAGNOSTIC_STATUS, "") ?: ""
         if (!priorStatus.startsWith("Startup failed:") &&
-            !priorStatus.startsWith("Microphone check failed:")
+            !priorStatus.startsWith("Microphone check failed:") &&
+            !priorStatus.startsWith("ChatGPT Voice handoff")
         ) {
             setDiagnosticStatus("Not listening", listening = false)
         } else {
