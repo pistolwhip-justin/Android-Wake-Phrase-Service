@@ -260,6 +260,7 @@ class WakeWordService : Service() {
         val priorStatus = prefs.getString(KEY_DIAGNOSTIC_STATUS, "") ?: ""
         if (!priorStatus.startsWith("Startup failed:") &&
             !priorStatus.startsWith("Microphone check failed:") &&
+            !priorStatus.startsWith("Detector failed:") &&
             !priorStatus.startsWith("ChatGPT Voice")
         ) {
             setDiagnosticStatus("Not listening", listening = false)
