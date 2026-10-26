@@ -14,6 +14,8 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
@@ -22,6 +24,7 @@ class WakeWordService : Service() {
     private var detector: FixedOpenWakeWord? = null
     private var lastActionAt = 0L
     private var started = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
@@ -58,13 +61,24 @@ class WakeWordService : Service() {
                 return START_NOT_STICKY
             }
 
-            setDiagnosticStatus("Microphone check passed; loading patched wake-word detector", listening = true)
+            setDiagnosticStatus("Preflight passed; detector thread is loading models and initializing audio.", listening = true)
             detector = FixedOpenWakeWord.Builder(this)
                 .setModelAsset("wakeword/yo_ai_overlord.onnx")
                 // Slightly more sensitive than the original 0.5 threshold.
                 .setThreshold(DETECTION_THRESHOLD)
+                .setStatusListener { status, healthy ->
+                    mainHandler.post {
+                        setDiagnosticStatus(status, listening = healthy)
+                        if (!healthy) {
+                            started = false
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            stopSelf()
+                        }
+                    }
+                }
                 .build()
 
+            started = true
             detector?.start { score ->
                 val now = SystemClock.elapsedRealtime()
                 Log.i(TAG, "Yo, Ai Overlord detection callback; confidence=$score")
@@ -81,18 +95,14 @@ class WakeWordService : Service() {
                     handoffToChatGPTVoice()
                 }
             }
-            started = true
-            setDiagnosticStatus(
-                "Microphone check passed. Custom detector started; say “yo, Ai Overlord” clearly near the phone.",
-                listening = true
-            )
-            Log.i(TAG, "Patched wake-word detector start requested; threshold=$DETECTION_THRESHOLD")
+            Log.i(TAG, "Wake-word detector worker launched; threshold=$DETECTION_THRESHOLD")
         } catch (error: Exception) {
             Log.e(TAG, "Failed to start wake-word service", error)
             setDiagnosticStatus(
                 "Startup failed: ${error.javaClass.simpleName}: ${error.message ?: "no details"}",
                 listening = false
             )
+            started = false
             detector?.let { runCatching { it.stop() }; runCatching { it.release() } }
             detector = null
             stopForeground(STOP_FOREGROUND_REMOVE)
