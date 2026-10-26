@@ -1,0 +1,79 @@
+name: Release 1.4.2 — Include custom wake-word model
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore trained custom wake-word model
+        run: |
+          git fetch origin fix/in-app-stop-listening
+          mkdir -p app/src/main/assets/wakeword
+          git show origin/fix/in-app-stop-listening:app/src/main/assets/wakeword/yo_ai_overlord.onnx > app/src/main/assets/wakeword/yo_ai_overlord.onnx
+          test -s app/src/main/assets/wakeword/yo_ai_overlord.onnx
+          echo "Verified custom model exists: $(stat -c%s app/src/main/assets/wakeword/yo_ai_overlord.onnx) bytes"
+
+      - name: Verify model is packaged into the APK
+        run: |
+          echo "Model source exists before Android build; packaging verification follows the build."
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build and test debug APK
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+
+      - name: Verify APK contains the custom model
+        run: |
+          python - <<'PY'
+          import zipfile
+          apk = "app/build/outputs/apk/debug/app-debug.apk"
+          expected = "assets/wakeword/yo_ai_overlord.onnx"
+          with zipfile.ZipFile(apk) as archive:
+              names = archive.namelist()
+              matches = [name for name in names if name.endswith(expected)]
+              assert matches, f"Custom model missing from APK: {expected}"
+              info = archive.getinfo(matches[0])
+              assert info.file_size > 0, f"Packaged model is empty: {matches[0]}"
+              print(f"Verified packaged model: {matches[0]} ({info.file_size} bytes)")
+          PY
+
+      - name: Prepare release files
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Android-Wake-Phrase-Service-1.4.2.apk
+          cat > RELEASE_NOTES.md <<'EOF'
+          Wake Phrase Service 1.4.2 — custom model packaging fix
+
+          Fixes the 1.4.1 failure where the custom wake-word ONNX model was absent from the APK.
+          The release workflow restores the trained model from the training branch and verifies the model is present and non-empty inside the built APK.
+          Includes the 1.4.1 detector and audio diagnostics.
+          Wake phrase: “yo, Ai Overlord”.
+          This is a debug-signed test APK. Physical-device microphone and wake-word behavior still require user testing.
+          EOF
+
+      - name: Publish immutable versioned GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v1.4.2
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
+          gh release create "$TAG" Android-Wake-Phrase-Service-1.4.2.apk --title "Android Wake Phrase Service 1.4.2 — Custom Model Packaging Fix" --notes-file RELEASE_NOTES.md
