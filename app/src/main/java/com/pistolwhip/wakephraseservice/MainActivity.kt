@@ -104,7 +104,7 @@ class MainActivity : Activity() {
         root.addView(assistantSetup, matchWrap())
 
         val diagnostics = TextView(this).apply {
-            text = "Diagnostics show microphone preflight results and the confidence score when the detector reports a match. The detector library does not expose below-threshold scores."
+            text = "Diagnostics now report ONNX model loading, microphone recording state, captured audio frames, inference count, and the latest confidence score. The confidence score updates during listening, including below-threshold results."
             textSize = 13f
             setPadding(0, 24, 0, 0)
         }
