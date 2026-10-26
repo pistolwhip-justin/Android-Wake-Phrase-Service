@@ -11,8 +11,8 @@ android {
         applicationId = "com.pistolwhip.wakephraseservice"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.4.0-rc1"
+        versionCode = 8
+        versionName = "1.4.1"
         testInstrumentationRunner = "android.test.runner.AndroidJUnitRunner"
     }
 
